@@ -1,0 +1,121 @@
+# Databricks Asset Bundle — Tower Hamlets air quality forecasting
+#
+# Deploys the Lakeflow Declarative Pipeline + the daily Job that orchestrates
+# ingest → train_and_compare → score_and_alert.
+#
+# Targets:
+#   - dev  → fevm-mbcl workspace, mbcl_catalog (this demo)
+#   - prod → LBTH internal workspace, swap host + catalog when promoting
+
+bundle:
+  name: th_air_quality_forecasting
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: mbcl_catalog
+  schema:
+    description: UC schema for forecasting outputs
+    default: th_air_quality_forecast
+  shared_experiment:
+    description: Path to the shared MLflow experiment (workspace folder, not Git folder)
+    default: /Shared/lbth/air_quality_forecasting/experiments/multi_model_bakeoff
+  alert_dry_run:
+    description: When 'true', the score_and_alert task composes payloads but does not POST
+    default: "true"
+
+resources:
+  pipelines:
+    th_air_quality_forecast_pipeline:
+      name: th_air_quality_forecast_pipeline
+      catalog: ${var.catalog}
+      target: ${var.schema}
+      serverless: true
+      photon: true
+      libraries:
+        - file:
+            path: ./pipeline/th_air_quality_forecast_pipeline.py
+      configuration:
+        bundle.sourcePath: ${workspace.file_path}/pipeline
+      development: true
+
+  jobs:
+    th_air_quality_daily:
+      name: th_air_quality_daily
+      tags:
+        team: data-platform
+        project: air-quality-forecasting
+        env: ${bundle.target}
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"  # 06:00 UTC daily
+        timezone_id: Europe/London
+        pause_status: PAUSED  # flip to UNPAUSED in prod
+      email_notifications:
+        on_failure:
+          - toz.ozturk@databricks.com  # demo target — swap to data-platform-oncall@towerhamlets.gov.uk in prod
+      # webhook_notifications: configured per-target — replace UUID below in prod
+      # webhook_notifications:
+      #   on_failure:
+      #     - id: <ops-webhook-uuid>
+
+      tasks:
+        - task_key: ingest_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.th_air_quality_forecast_pipeline.id}
+            full_refresh: false
+
+        - task_key: train_and_compare
+          depends_on:
+            - task_key: ingest_pipeline
+          notebook_task:
+            notebook_path: ./notebooks/02_train_and_compare.py
+            base_parameters:
+              shared_experiment: ${var.shared_experiment}
+          environment_key: ml_env
+
+        - task_key: score_and_alert
+          depends_on:
+            - task_key: train_and_compare
+          notebook_task:
+            notebook_path: ./notebooks/03_score_and_alert.py
+            base_parameters:
+              dry_run: ${var.alert_dry_run}
+          environment_key: ml_env
+
+      environments:
+        - environment_key: ml_env
+          spec:
+            client: "2"
+            dependencies:
+              - mlflow==3.1.4
+              - statsforecast==1.7.6
+              - cmdstanpy==1.2.4
+              - prophet==1.1.5
+              - tensorflow==2.18.0
+
+  experiments:
+    multi_model_bakeoff:
+      # Note: experiments cannot live inside Git folders — keep this in /Shared.
+      name: ${var.shared_experiment}
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://fevm-mbcl.cloud.databricks.com
+    variables:
+      alert_dry_run: "true"
+
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-<lbth-workspace-id>.azuredatabricks.net
+      root_path: /Workspace/Shared/.bundle/prod/${bundle.name}
+    run_as:
+      service_principal_name: lbth-air-quality-deploy-sp
+    variables:
+      catalog: lbth_data_platform
+      schema: air_quality_forecast
+      alert_dry_run: "false"
+      shared_experiment: /Shared/lbth/air_quality_forecasting/experiments/multi_model_bakeoff

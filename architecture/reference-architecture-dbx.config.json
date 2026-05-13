@@ -1,0 +1,54 @@
+{
+  "customer": "London Borough of Tower Hamlets",
+  "cloud": "Azure UK South · workspace fevm-mbcl · catalog mbcl_catalog",
+  "subtitle": "Air Quality Forecasting & Alerting — Reference Architecture",
+  "left_rail": [
+    {"label": "ADLS Gen2\n(daily sensor CSV)", "kind": "third-party"},
+    {"label": "Resident register\n(nightly extract)", "kind": "third-party"}
+  ],
+  "right_rail": [
+    {"label": "Azure Function\n(sign · dedupe · MI)", "kind": "third-party"},
+    {"label": "Azure Communication\nServices · SMS", "kind": "third-party"},
+    {"label": "Resident mobile\n(SMS)", "kind": "third-party"}
+  ],
+  "bands": [
+    {
+      "label": "Ingest",
+      "cards": [
+        {"product": "auto loader", "label": "Auto Loader\nTrigger.AvailableNow", "highlight": true}
+      ]
+    },
+    {
+      "label": "Lakeflow Spark Declarative Pipeline · Medallion",
+      "cards": [
+        {"product": "delta lake", "label": "Bronze\nraw_readings", "highlight": true},
+        {"product": "data quality 1", "label": "Silver\nreadings_typed\n+ DQ expectations", "highlight": true},
+        {"product": "delta lake", "label": "Gold\nward_daily_ts · residents · subscriptions", "highlight": true}
+      ]
+    },
+    {
+      "label": "Multi-model bake-off (parallel)",
+      "cards": [
+        {"product": "model training", "label": "SeasonalNaive", "highlight": true},
+        {"product": "model training", "label": "Prophet", "highlight": true},
+        {"product": "model training", "label": "StatsForecast\nAutoARIMA", "highlight": true},
+        {"product": "model training", "label": "StatsForecast\nAutoETS", "highlight": true}
+      ]
+    },
+    {
+      "label": "Track · Register · Score",
+      "cards": [
+        {"product": "training", "label": "MLflow\nshared experiment", "highlight": true},
+        {"product": "model registry", "label": "UC Model Registry\nward_champion", "highlight": true},
+        {"product": "workflows 1", "label": "Score job\nchampion-per-ward", "highlight": true},
+        {"product": "delta lake", "label": "gold_alerts\n(Delta)", "highlight": true}
+      ]
+    },
+    {
+      "label": "Governance · Unity Catalog",
+      "cards": [
+        {"product": "unity catalog", "label": "Unity Catalog\nlineage · column masks · audit · tags", "highlight": true}
+      ]
+    }
+  ]
+}

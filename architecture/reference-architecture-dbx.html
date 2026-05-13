@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Databricks Data Intelligence Platform</title>
+<style>
+:root {
+  --lava: #FF3621;
+  --ink: #0B2026;
+  --oat: #F9F7F4;
+  --fog: #EEEDE9;
+  --grey-3p: #9CA3AF;
+  --grey-3p-bg: #F3F4F6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  color: var(--ink);
+  background: white;
+  padding: 28px 80px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.title { font-size: 26px; font-weight: 700; color: var(--ink); }
+.subtitle { font-size: 14px; color: var(--ink); font-weight: 500; }
+.column-headers {
+  display: grid;
+  grid-template-columns: 110px 1fr 130px;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.col-headers-mid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.col-headers-mid > div { padding: 4px 8px; background: var(--fog); border-radius: 4px; }
+.layout {
+  display: grid;
+  grid-template-columns: 130px 1fr 140px;
+  gap: 12px;
+  align-items: start;
+}
+.rail { display: flex; flex-direction: column; gap: 10px; }
+.rail-title {
+  font-size: 11px; font-weight: 700; color: var(--ink);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 6px;
+  margin-bottom: 2px;
+}
+.platform {
+  display: flex; flex-direction: row; gap: 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  padding: 14px;
+  background: white;
+  align-items: stretch;
+}
+.band {
+  display: flex; flex-direction: column;
+  background: var(--oat);
+  border-radius: 8px;
+  padding: 12px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.band-label {
+  font-size: 11px; font-weight: 700; color: var(--ink);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+.card {
+  display: flex; flex-direction: column; align-items: center;
+  background: white;
+  border: 1px solid var(--fog);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  min-height: 80px;
+  justify-content: center;
+}
+.card.dbx { border-color: var(--lava); }
+.card.dbx-on { border-color: var(--lava); background: #FFF5F2; }
+.card.third-party {
+  border-color: var(--grey-3p);
+  background: var(--grey-3p-bg);
+  color: var(--grey-3p);
+}
+.card img { width: 40px; height: 40px; object-fit: contain; margin-bottom: 8px; }
+.card .label { font-size: 12px; font-weight: 500; line-height: 1.3; }
+.card.third-party .label { color: var(--ink); }
+.legend {
+  display: flex; gap: 18px; align-items: center;
+  margin-top: 16px;
+  font-size: 12px;
+  justify-content: flex-end;
+}
+.legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+.legend-swatch.dbx { background: var(--lava); }
+.legend-swatch.dbx-on { background: #FFF5F2; border: 1.5px solid var(--lava); }
+.legend-swatch.third-party { background: var(--grey-3p); }
+.footer {
+  margin-top: 10px; font-size: 10px; color: var(--grey-3p); text-align: right;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">Databricks Data Intelligence Platform</div>
+  <div class="subtitle">Air Quality Forecasting & Alerting — Reference Architecture</div>
+</div>
+
+<div class="layout">
+
+  <!-- Left rail: data sources -->
+  <div class="rail">
+    <div class="rail-title">Data Sources</div>
+    <div class="card third-party"><span class="label">ADLS Gen2
+(daily sensor CSV)</span></div>
+<div class="card third-party"><span class="label">Resident register
+(nightly extract)</span></div>
+  </div>
+
+  <!-- Centre: Data Intelligence Platform -->
+  <div class="platform">
+    
+<div class="band">
+  <div class="band-label">Ingest</div>
+  <div class="cards"><div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Auto Loader/primary-icon-orange-auto-loader.svg" alt=""><span class="label">Auto Loader
+Trigger.AvailableNow</span></div></div>
+</div>
+
+
+<div class="band">
+  <div class="band-label">Lakeflow Spark Declarative Pipeline · Medallion</div>
+  <div class="cards"><div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Delta Lake/primary-icon-orange-delta-lake.svg" alt=""><span class="label">Bronze
+raw_readings</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Data Quality 1/primary-icon-orange-data-quality-1.svg" alt=""><span class="label">Silver
+readings_typed
++ DQ expectations</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Delta Lake/primary-icon-orange-delta-lake.svg" alt=""><span class="label">Gold
+ward_daily_ts · residents · subscriptions</span></div></div>
+</div>
+
+
+<div class="band">
+  <div class="band-label">Multi-model bake-off (parallel)</div>
+  <div class="cards"><div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Model Training/primary-icon-orange-model-training.svg" alt=""><span class="label">SeasonalNaive</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Model Training/primary-icon-orange-model-training.svg" alt=""><span class="label">Prophet</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Model Training/primary-icon-orange-model-training.svg" alt=""><span class="label">StatsForecast
+AutoARIMA</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Model Training/primary-icon-orange-model-training.svg" alt=""><span class="label">StatsForecast
+AutoETS</span></div></div>
+</div>
+
+
+<div class="band">
+  <div class="band-label">Track · Register · Score</div>
+  <div class="cards"><div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Training/primary-icon-orange-training.svg" alt=""><span class="label">MLflow
+shared experiment</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Model Registry/primary-icon-orange-model-registry.svg" alt=""><span class="label">UC Model Registry
+ward_champion</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Workflows 1/primary-icon-orange-workflows-1.svg" alt=""><span class="label">Score job
+champion-per-ward</span></div>
+<div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Delta Lake/primary-icon-orange-delta-lake.svg" alt=""><span class="label">gold_alerts
+(Delta)</span></div></div>
+</div>
+
+
+<div class="band">
+  <div class="band-label">Governance · Unity Catalog</div>
+  <div class="cards"><div class="card dbx-on"><img src="file:///Users/toz.ozturk/.claude/skills/dbx-reference-architecture/icons/Primary Icon Unity Catalog/primary-icon-orange-unity-catalog.svg" alt=""><span class="label">Unity Catalog
+lineage · column masks · audit · tags</span></div></div>
+</div>
+
+  </div>
+
+  <!-- Right rail: integrate -->
+  <div class="rail">
+    <div class="rail-title">Integrate</div>
+    <div class="card third-party"><span class="label">Azure Function
+(sign · dedupe · MI)</span></div>
+<div class="card third-party"><span class="label">Azure Communication
+Services · SMS</span></div>
+<div class="card third-party"><span class="label">Resident mobile
+(SMS)</span></div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <span><span class="legend-swatch dbx-on"></span>In scope (highlighted)</span>
+  <span><span class="legend-swatch dbx"></span>Databricks</span>
+  <span><span class="legend-swatch third-party"></span>3rd party</span>
+</div>
+
+<div class="footer">London Borough of Tower Hamlets · Azure UK South · workspace fevm-mbcl · catalog mbcl_catalog · 2026-05-13</div>
+
+</body>
+</html>

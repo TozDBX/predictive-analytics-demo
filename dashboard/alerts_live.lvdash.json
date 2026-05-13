@@ -1,0 +1,268 @@
+{
+  "datasets": [
+    {
+      "name": "kpis",
+      "displayName": "KPI totals (last 24h)",
+      "queryLines": [
+        "SELECT",
+        "  COUNT(*) AS n_dispatched,",
+        "  COUNT(DISTINCT a.resident_id) AS n_residents,",
+        "  COUNT(DISTINCT a.ward_id) AS n_wards,",
+        "  ROUND(AVG(au.latency_ms), 0) AS avg_latency_ms,",
+        "  ROUND(100 * SUM(CASE WHEN au.delivery_status = 'DELIVERED' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) AS pct_delivered",
+        "FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit au",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_alerts a USING (alert_key)",
+        "WHERE au.delivery_ts >= current_timestamp() - INTERVAL 24 HOURS"
+      ]
+    },
+    {
+      "name": "feed",
+      "displayName": "Live message feed",
+      "queryLines": [
+        "SELECT",
+        "  date_format(au.delivery_ts, 'HH:mm:ss') AS sent,",
+        "  a.ward_id,",
+        "  CONCAT('Band ', a.daqi_band, ' (', a.daqi_label, ')') AS daqi,",
+        "  a.phone_masked AS phone,",
+        "  CONCAT('LBTH air quality alert for ', a.ward_id, ': DAQI band ', a.daqi_band,",
+        "         ' (', a.daqi_label, ') forecast for ', a.forecast_date,",
+        "         '. Vulnerable residents: avoid prolonged exposure outdoors. lbth.gov/airquality') AS body,",
+        "  au.delivery_status AS status",
+        "FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit au",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_alerts a USING (alert_key)",
+        "ORDER BY au.delivery_ts DESC",
+        "LIMIT 12"
+      ]
+    },
+    {
+      "name": "throughput",
+      "displayName": "Alerts per minute (last 60 min)",
+      "queryLines": [
+        "WITH bins AS (",
+        "  SELECT date_trunc('MINUTE', delivery_ts) AS minute, delivery_status",
+        "  FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit",
+        "  WHERE delivery_ts >= current_timestamp() - INTERVAL 60 MINUTES",
+        ")",
+        "SELECT minute, delivery_status, COUNT(*) AS n",
+        "FROM bins",
+        "GROUP BY minute, delivery_status",
+        "ORDER BY minute"
+      ]
+    },
+    {
+      "name": "by_ward",
+      "displayName": "Alerts by ward",
+      "queryLines": [
+        "SELECT a.ward_id, COUNT(*) AS n_alerts,",
+        "       COUNT(DISTINCT a.resident_id) AS n_residents,",
+        "       MAX(a.daqi_band) AS worst_band",
+        "FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit au",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_alerts a USING (alert_key)",
+        "GROUP BY a.ward_id",
+        "ORDER BY n_alerts DESC"
+      ]
+    },
+    {
+      "name": "by_threshold",
+      "displayName": "Residents alerted by sensitivity threshold",
+      "queryLines": [
+        "SELECT s.daqi_threshold AS sensitivity_threshold, COUNT(DISTINCT au.alert_key) AS n_alerts",
+        "FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit au",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_alerts a USING (alert_key)",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_active_subscriptions s USING (subscription_id)",
+        "GROUP BY s.daqi_threshold",
+        "ORDER BY sensitivity_threshold"
+      ]
+    },
+    {
+      "name": "audit_log",
+      "displayName": "Full audit log",
+      "queryLines": [
+        "SELECT au.delivery_ts, a.ward_id, a.daqi_band, a.daqi_label,",
+        "       a.phone_masked AS phone, au.acs_message_id, au.delivery_status,",
+        "       au.latency_ms, au.failure_reason",
+        "FROM mbcl_catalog.th_air_quality_forecast.gold_alerts_audit au",
+        "JOIN mbcl_catalog.th_air_quality_forecast.gold_alerts a USING (alert_key)",
+        "ORDER BY au.delivery_ts DESC",
+        "LIMIT 200"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "live",
+      "displayName": "Live",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "textbox_spec": "# Air Quality Resident Alerts — Live\n\nResident SMS dispatch driven by `gold_alerts` → webhook → Azure Communication Services. Audit callbacks land in `gold_alerts_audit`. **Demo mode**: ACS responses are simulated by `notebooks/05_simulate_acs_callbacks.py`."
+          },
+          "position": {"x": 0, "y": 0, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "kpi_dispatched",
+            "queries": [{"name": "q", "query": {"datasetName": "kpis", "fields": [{"name": "n_dispatched", "expression": "`n_dispatched`"}], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "counter",
+                     "encodings": {"value": {"fieldName": "n_dispatched", "displayName": "Dispatched", "format": {"type": "number-plain", "decimalPlaces": {"type": "max", "places": 0}}}},
+                     "frame": {"title": "Dispatched (24h)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi_residents",
+            "queries": [{"name": "q", "query": {"datasetName": "kpis", "fields": [{"name": "n_residents", "expression": "`n_residents`"}], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "counter",
+                     "encodings": {"value": {"fieldName": "n_residents", "displayName": "Residents", "format": {"type": "number-plain", "decimalPlaces": {"type": "max", "places": 0}}}},
+                     "frame": {"title": "Residents reached", "showTitle": true}}
+          },
+          "position": {"x": 1, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi_wards",
+            "queries": [{"name": "q", "query": {"datasetName": "kpis", "fields": [{"name": "n_wards", "expression": "`n_wards`"}], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "counter",
+                     "encodings": {"value": {"fieldName": "n_wards", "displayName": "Wards", "format": {"type": "number-plain", "decimalPlaces": {"type": "max", "places": 0}}}},
+                     "frame": {"title": "Wards in breach", "showTitle": true}}
+          },
+          "position": {"x": 2, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi_delivered",
+            "queries": [{"name": "q", "query": {"datasetName": "kpis", "fields": [{"name": "pct_delivered", "expression": "`pct_delivered`"}], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "counter",
+                     "encodings": {"value": {"fieldName": "pct_delivered", "displayName": "% delivered", "format": {"type": "number-plain", "decimalPlaces": {"type": "max", "places": 1}}}},
+                     "frame": {"title": "Delivery rate %", "showTitle": true}}
+          },
+          "position": {"x": 3, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi_latency",
+            "queries": [{"name": "q", "query": {"datasetName": "kpis", "fields": [{"name": "avg_latency_ms", "expression": "`avg_latency_ms`"}], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "counter",
+                     "encodings": {"value": {"fieldName": "avg_latency_ms", "displayName": "Avg latency (ms)", "format": {"type": "number-plain", "decimalPlaces": {"type": "max", "places": 0}}}},
+                     "frame": {"title": "Avg ACS latency (ms)", "showTitle": true}}
+          },
+          "position": {"x": 4, "y": 2, "width": 2, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "feed_table",
+            "queries": [{"name": "q", "query": {"datasetName": "feed",
+              "fields": [
+                {"name": "sent", "expression": "`sent`"},
+                {"name": "ward_id", "expression": "`ward_id`"},
+                {"name": "daqi", "expression": "`daqi`"},
+                {"name": "phone", "expression": "`phone`"},
+                {"name": "body", "expression": "`body`"},
+                {"name": "status", "expression": "`status`"}
+              ], "disaggregated": true}}],
+            "spec": {"version": 1, "widgetType": "table",
+                     "encodings": {"columns": [
+                       {"fieldName": "sent", "displayName": "Sent", "type": "string"},
+                       {"fieldName": "ward_id", "displayName": "Ward", "type": "string"},
+                       {"fieldName": "daqi", "displayName": "DAQI", "type": "string"},
+                       {"fieldName": "phone", "displayName": "To", "type": "string"},
+                       {"fieldName": "body", "displayName": "Message", "type": "string"},
+                       {"fieldName": "status", "displayName": "Status", "type": "string"}
+                     ]},
+                     "frame": {"title": "Live message feed (most recent 12)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 5, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "throughput_chart",
+            "queries": [{"name": "q", "query": {"datasetName": "throughput",
+              "fields": [
+                {"name": "minute", "expression": "`minute`"},
+                {"name": "n", "expression": "`n`"},
+                {"name": "delivery_status", "expression": "`delivery_status`"}
+              ], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "bar",
+                     "encodings": {
+                       "x": {"fieldName": "minute", "scale": {"type": "temporal"}, "displayName": "Minute"},
+                       "y": {"fieldName": "n", "scale": {"type": "quantitative"}, "displayName": "Alerts"},
+                       "color": {"fieldName": "delivery_status", "displayName": "Status"}
+                     },
+                     "frame": {"title": "Alerts per minute (last 60 min)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 11, "width": 4, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "by_threshold_chart",
+            "queries": [{"name": "q", "query": {"datasetName": "by_threshold",
+              "fields": [
+                {"name": "sensitivity_threshold", "expression": "`sensitivity_threshold`"},
+                {"name": "n_alerts", "expression": "`n_alerts`"}
+              ], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "bar",
+                     "encodings": {
+                       "x": {"fieldName": "sensitivity_threshold", "scale": {"type": "categorical"}, "displayName": "Threshold (DAQI)"},
+                       "y": {"fieldName": "n_alerts", "scale": {"type": "quantitative"}, "displayName": "Alerts"}
+                     },
+                     "frame": {"title": "Residents alerted by sensitivity", "showTitle": true}}
+          },
+          "position": {"x": 4, "y": 11, "width": 2, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "by_ward_chart",
+            "queries": [{"name": "q", "query": {"datasetName": "by_ward",
+              "fields": [
+                {"name": "ward_id", "expression": "`ward_id`"},
+                {"name": "n_alerts", "expression": "`n_alerts`"},
+                {"name": "n_residents", "expression": "`n_residents`"},
+                {"name": "worst_band", "expression": "`worst_band`"}
+              ], "disaggregated": true}}],
+            "spec": {"version": 3, "widgetType": "bar",
+                     "encodings": {
+                       "x": {"fieldName": "ward_id", "scale": {"type": "categorical"}, "displayName": "Ward"},
+                       "y": {"fieldName": "n_alerts", "scale": {"type": "quantitative"}, "displayName": "Alerts"},
+                       "color": {"fieldName": "worst_band", "displayName": "Worst DAQI band"}
+                     },
+                     "frame": {"title": "Alerts by ward (worst forecast band)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 16, "width": 6, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "audit_log_table",
+            "queries": [{"name": "q", "query": {"datasetName": "audit_log",
+              "fields": [
+                {"name": "delivery_ts", "expression": "`delivery_ts`"},
+                {"name": "ward_id", "expression": "`ward_id`"},
+                {"name": "daqi_band", "expression": "`daqi_band`"},
+                {"name": "daqi_label", "expression": "`daqi_label`"},
+                {"name": "phone", "expression": "`phone`"},
+                {"name": "acs_message_id", "expression": "`acs_message_id`"},
+                {"name": "delivery_status", "expression": "`delivery_status`"},
+                {"name": "latency_ms", "expression": "`latency_ms`"},
+                {"name": "failure_reason", "expression": "`failure_reason`"}
+              ], "disaggregated": true}}],
+            "spec": {"version": 1, "widgetType": "table",
+                     "encodings": {"columns": [
+                       {"fieldName": "delivery_ts", "displayName": "When", "type": "datetime"},
+                       {"fieldName": "ward_id", "displayName": "Ward", "type": "string"},
+                       {"fieldName": "daqi_band", "displayName": "Band", "type": "integer"},
+                       {"fieldName": "daqi_label", "displayName": "Label", "type": "string"},
+                       {"fieldName": "phone", "displayName": "To", "type": "string"},
+                       {"fieldName": "acs_message_id", "displayName": "ACS msg id", "type": "string"},
+                       {"fieldName": "delivery_status", "displayName": "Status", "type": "string"},
+                       {"fieldName": "latency_ms", "displayName": "Latency (ms)", "type": "integer"},
+                       {"fieldName": "failure_reason", "displayName": "Failure reason", "type": "string"}
+                     ]},
+                     "frame": {"title": "Audit log (last 200)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 21, "width": 6, "height": 8}
+        }
+      ]
+    }
+  ]
+}
