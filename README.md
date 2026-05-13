@@ -1,10 +1,10 @@
-# Tower Hamlets — Air Quality Forecasting & Alerting
+# Predictive Analytics Demo — Forecasting & Alerting
 
-A complete, end-to-end Databricks demo built for London Borough of Tower Hamlets. It shows how to forecast daily PM2.5 per ward, register a champion model per ward in Unity Catalog, and generate SMS alerts when forecasts cross DEFRA DAQI thresholds — all using **batch sensor data** on **Azure Databricks**.
+A complete, end-to-end Databricks reference demo for local-authority sensor forecasting. It shows how to forecast a daily metric (here, PM2.5) per geographic unit (here, ward), register a champion model per unit in Unity Catalog, and generate alerts when forecasts cross regulatory thresholds. Built on **batch data** running on **Azure Databricks**.
 
-Everything in this repo is a **Databricks Asset Bundle** — one command (`databricks bundle deploy`) creates the pipeline, the job, the MLflow experiment, and points the notebooks at your catalog.
+Everything in this repo is a **Databricks Asset Bundle**. One command (`databricks bundle deploy`) creates the Lakeflow Declarative Pipeline, the orchestration job, the MLflow experiment, and points the notebooks at your catalog.
 
-The data is **synthetic** and **deterministic** (fixed seeds, 20 wards × 365 days). No real Tower Hamlets resident data is included.
+The data is **synthetic** and **deterministic** (fixed seeds, 20 wards × 365 days). No real-world resident data is included.
 
 ---
 
@@ -68,25 +68,25 @@ You should see `Databricks CLI v0.235.0` or later. **If you see anything below v
 ### Step 2 — Authenticate against your Databricks workspace
 
 ```bash
-databricks auth login --profile lbth --host https://adb-<YOUR-WORKSPACE-ID>.azuredatabricks.net
+databricks auth login --profile demo --host https://adb-<YOUR-WORKSPACE-ID>.azuredatabricks.net
 ```
 
-Replace `<YOUR-WORKSPACE-ID>` with the actual ID of your Tower Hamlets workspace (the number that appears in the URL when you log into Databricks). Example:
+Replace `<YOUR-WORKSPACE-ID>` with the actual ID of your workspace (the number that appears in the URL when you log into Databricks). Example:
 ```bash
-databricks auth login --profile lbth --host https://adb-1234567890123456.7.azuredatabricks.net
+databricks auth login --profile demo --host https://adb-1234567890123456.7.azuredatabricks.net
 ```
 
 This will:
 1. Open a browser tab
-2. Ask you to sign in with your LBTH account
+2. Ask you to sign in with your workspace account
 3. Ask you to click **Allow**
 4. Close the browser and return to the terminal
 
-You should see `Profile lbth was successfully saved`.
+You should see `Profile demo was successfully saved`.
 
 **Verify auth worked:**
 ```bash
-databricks current-user me --profile lbth
+databricks current-user me --profile demo
 ```
 You should see a JSON blob with your email address. If you don't, re-run the login command.
 
@@ -95,8 +95,8 @@ You should see a JSON blob with your email address. If you don't, re-run the log
 ### Step 3 — Clone this repo
 
 ```bash
-git clone https://github.com/TozDBX/lbth-air-quality-forecasting.git
-cd lbth-air-quality-forecasting
+git clone https://github.com/TozDBX/predictive-analytics-demo.git
+cd predictive-analytics-demo
 ```
 
 ---
@@ -109,11 +109,11 @@ Open `databricks.yml` in any text editor (VS Code, Notepad++, TextEdit). You nee
   prod:
     mode: production
     workspace:
-      host: https://adb-<lbth-workspace-id>.azuredatabricks.net   # (1) put your workspace URL here
+      host: https://adb-<YOUR-WORKSPACE-ID>.azuredatabricks.net   # (1) put your workspace URL here
     run_as:
-      service_principal_name: lbth-air-quality-deploy-sp          # (2) optional; remove this block for first run
+      service_principal_name: predictive-demo-deploy-sp          # (2) optional; remove this block for first run
     variables:
-      catalog: lbth_data_platform                                 # (3) the Unity Catalog name you want to write into
+      catalog: my_catalog                                 # (3) the Unity Catalog name you want to write into
       schema: air_quality_forecast                                # (4) the schema inside that catalog
       alert_dry_run: "false"                                      #     keep this — flips real SMS sending on
 ```
@@ -145,22 +145,22 @@ cd ..
 ```
 This creates `data/*.csv` in the repo root.
 
-**Create the catalog / schema / volume in Databricks**, then upload the CSVs. Replace `LBTH_CATALOG` with the catalog you set in Step 4:
+**Create the catalog / schema / volume in Databricks**, then upload the CSVs. Replace `MY_CATALOG` with the catalog you set in Step 4:
 
 ```bash
-databricks --profile lbth catalogs create LBTH_CATALOG
-databricks --profile lbth schemas create th_hub LBTH_CATALOG
-databricks --profile lbth volumes create LBTH_CATALOG.th_hub raw_csv
+databricks --profile demo catalogs create MY_CATALOG
+databricks --profile demo schemas create th_hub MY_CATALOG
+databricks --profile demo volumes create MY_CATALOG.th_hub raw_csv
 
 for f in data/*.csv; do
-  databricks --profile lbth fs cp "$f" "dbfs:/Volumes/LBTH_CATALOG/th_hub/raw_csv/$(basename $f)" --overwrite
+  databricks --profile demo fs cp "$f" "dbfs:/Volumes/MY_CATALOG/th_hub/raw_csv/$(basename $f)" --overwrite
 done
 ```
 
 **Windows PowerShell users** — the `for f in ...` loop is bash. Use this instead:
 ```powershell
 Get-ChildItem data\*.csv | ForEach-Object {
-  databricks --profile lbth fs cp $_.FullName "dbfs:/Volumes/LBTH_CATALOG/th_hub/raw_csv/$($_.Name)" --overwrite
+  databricks --profile demo fs cp $_.FullName "dbfs:/Volumes/MY_CATALOG/th_hub/raw_csv/$($_.Name)" --overwrite
 }
 ```
 
@@ -171,7 +171,7 @@ Get-ChildItem data\*.csv | ForEach-Object {
 This dry-runs the deploy without touching anything. **Always do this first.**
 
 ```bash
-databricks bundle validate -t prod --profile lbth
+databricks bundle validate -t prod --profile demo
 ```
 
 You should see something like:
@@ -179,7 +179,7 @@ You should see something like:
 Name: th_air_quality_forecasting
 Target: prod
 Workspace: https://adb-<your-id>.azuredatabricks.net
-User: you@towerhamlets.gov.uk
+User: you@your-org.example.com
 Path: /Workspace/Shared/.bundle/prod/th_air_quality_forecasting
 
 Validation OK!
@@ -192,13 +192,13 @@ Validation OK!
 ### Step 7 — Deploy the bundle
 
 ```bash
-databricks bundle deploy -t prod --profile lbth
+databricks bundle deploy -t prod --profile demo
 ```
 
 This takes **30–60 seconds**. It creates:
 - A Lakeflow Declarative Pipeline named `th_air_quality_forecast_pipeline`
 - A Job named `th_air_quality_daily`
-- An MLflow experiment at `/Shared/lbth/air_quality_forecasting/experiments/multi_model_bakeoff`
+- An MLflow experiment at `/Shared/predictive-demo/air_quality_forecasting/experiments/multi_model_bakeoff`
 - A staging folder under `/Workspace/Shared/.bundle/prod/th_air_quality_forecasting/` with the source files
 
 When it finishes you'll see `Deployment complete!`.
@@ -208,7 +208,7 @@ When it finishes you'll see `Deployment complete!`.
 ### Step 8 — Run the daily job once
 
 ```bash
-databricks bundle run th_air_quality_daily -t prod --profile lbth
+databricks bundle run th_air_quality_daily -t prod --profile demo
 ```
 
 This kicks off the full chain: ingest → train & compare → score & alert. It takes **8–15 minutes** depending on warehouse size. You'll get a clickable link in the terminal output that goes straight to the job run page in the Databricks UI.
@@ -249,9 +249,9 @@ In your workspace UI:
 |---|---|
 | `databricks: command not found` | The CLI didn't install on your PATH. Close your terminal, open a new one, try again. On Windows, you may need to restart your terminal session for `winget` installs to take effect. |
 | `Error: cannot resolve host` | Your workspace URL in `databricks.yml` is wrong. Copy it from your browser address bar after logging in. |
-| `Error: 401 Unauthorized` | Your auth token expired. Re-run `databricks auth login --profile lbth --host <your-host>`. |
+| `Error: 401 Unauthorized` | Your auth token expired. Re-run `databricks auth login --profile demo --host <your-host>`. |
 | `Error: permission denied creating catalog` | Your account doesn't have CREATE CATALOG rights. Either ask an admin to create it, or change the catalog in `databricks.yml` to an existing one you can write into. |
-| Pipeline fails on `bronze_readings` | The CSVs aren't in the right Volume path. Re-run Step 5 and confirm with `databricks --profile lbth fs ls dbfs:/Volumes/<catalog>/th_hub/raw_csv/`. |
+| Pipeline fails on `bronze_readings` | The CSVs aren't in the right Volume path. Re-run Step 5 and confirm with `databricks --profile demo fs ls dbfs:/Volumes/<catalog>/th_hub/raw_csv/`. |
 | `Workspace MLflow experiments cannot be created in Git folders` | Confirm the experiment path in `databricks.yml` is under `/Shared`, not under `/Workspace/Users/<your>/repo/...`. |
 | Anything else | Open a GitHub issue, or message Toz. |
 
@@ -286,4 +286,4 @@ Source diagram: [`architecture/reference-architecture-dbx.html`](architecture/re
 
 Demo code, not production-grade. Use as a reference pattern. No guarantees expressed or implied.
 
-Built by Toz Ozturk (Databricks Solutions Architect) for London Borough of Tower Hamlets, May 2026.
+Built by Toz Ozturk, Databricks Solutions Architect. May 2026.

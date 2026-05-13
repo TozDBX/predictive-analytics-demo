@@ -1,11 +1,11 @@
-# Databricks Asset Bundle — Tower Hamlets air quality forecasting
+# Databricks Asset Bundle — Predictive Analytics Demo
 #
 # Deploys the Lakeflow Declarative Pipeline + the daily Job that orchestrates
 # ingest → train_and_compare → score_and_alert.
 #
 # Targets:
 #   - dev  → fevm-mbcl workspace, mbcl_catalog (this demo)
-#   - prod → LBTH internal workspace, swap host + catalog when promoting
+#   - prod → your workspace, swap host + catalog when promoting
 
 bundle:
   name: th_air_quality_forecasting
@@ -19,7 +19,7 @@ variables:
     default: th_air_quality_forecast
   shared_experiment:
     description: Path to the shared MLflow experiment (workspace folder, not Git folder)
-    default: /Shared/lbth/air_quality_forecasting/experiments/multi_model_bakeoff
+    default: /Shared/predictive-demo/air_quality_forecasting/experiments/multi_model_bakeoff
   alert_dry_run:
     description: When 'true', the score_and_alert task composes payloads but does not POST
     default: "true"
@@ -110,12 +110,12 @@ targets:
   prod:
     mode: production
     workspace:
-      host: https://adb-<lbth-workspace-id>.azuredatabricks.net
+      host: https://adb-<YOUR-WORKSPACE-ID>.azuredatabricks.net
       root_path: /Workspace/Shared/.bundle/prod/${bundle.name}
     run_as:
-      service_principal_name: lbth-air-quality-deploy-sp
+      service_principal_name: predictive-demo-deploy-sp
     variables:
-      catalog: lbth_data_platform
+      catalog: my_catalog
       schema: air_quality_forecast
       alert_dry_run: "false"
-      shared_experiment: /Shared/lbth/air_quality_forecasting/experiments/multi_model_bakeoff
+      shared_experiment: /Shared/predictive-demo/air_quality_forecasting/experiments/multi_model_bakeoff
