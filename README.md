@@ -23,7 +23,65 @@ The data is **synthetic** and **deterministic** (fixed seeds, 20 wards × 365 da
 
 ---
 
-## How to run this end-to-end
+## Two ways to run this
+
+| Path | What it does | When to pick it |
+|---|---|---|
+| **A. Git folder (no CLI)** | Clone the repo into a Databricks Git folder, run the notebooks one by one from the workspace UI. Skips bundle automation. | You don't have the CLI installed, can't install it, or just want to look around first. |
+| **B. Asset Bundle (CLI)** | `databricks bundle deploy` creates the pipeline, the daily job, the MLflow experiment in one shot. Production-style deploy. | You're comfortable with a terminal and want the full chain on a schedule. |
+
+Both paths use the same notebooks and pipeline code — you can start with A to explore, then switch to B when you're ready to put it on a schedule.
+
+---
+
+## Path A — Git folder (no CLI)
+
+### A1. Create a Git folder in your Databricks workspace
+
+1. In your Databricks workspace, click **Workspace** in the left nav.
+2. Navigate to **Users → your-email**.
+3. Click **New → Git folder**.
+4. Set:
+   - **Git repository URL**: `https://github.com/TozDBX/predictive-analytics-demo.git`
+   - **Git provider**: GitHub
+   - **Git folder name**: `predictive-analytics-demo` (or whatever you prefer)
+   - **Branch**: `main`
+5. Click **Create Git folder**.
+
+The repo content appears under `/Workspace/Users/your-email/predictive-analytics-demo/`. You can now open any of the notebooks in your browser.
+
+### A2. Create the catalog, schema, and volume
+
+Open **Catalog Explorer** in the left nav and create:
+
+1. A **catalog** you have CREATE rights on (e.g. `my_catalog`). If you don't have CREATE CATALOG privilege, ask your admin.
+2. Inside that catalog, create a **schema** called `th_hub`.
+3. Inside `th_hub`, create a **volume** called `raw_csv` (Type: Managed).
+
+### A3. Generate the synthetic data
+
+Open the notebook `data_gen/generate.py` (you may need to rename it to `.ipynb` or open it as a Python notebook). Attach it to a compute cluster (any all-purpose cluster, or start a small one). At the top of the notebook, set `OUTPUT_DIR = "/Volumes/<your-catalog>/th_hub/raw_csv"` so the CSVs land directly in your volume, then run all cells.
+
+> If you'd rather generate locally and upload via the Catalog Explorer **Upload files** button: run `python3 data_gen/generate.py` on your laptop, then drag the resulting `data/*.csv` into the volume in the Catalog Explorer UI.
+
+### A4. Run the notebooks in order
+
+Open each notebook from the Git folder and run all cells, top to bottom. Replace any reference to `mbcl_catalog` with your catalog name (Cmd/Ctrl-F → Find & Replace inside each notebook).
+
+1. `notebooks/01_explore_data.py` — sanity check the gold tables
+2. `pipeline/th_air_quality_forecast_pipeline.py` — for the pipeline, in the workspace UI go **Workflows → Pipelines → Create pipeline**, select **Lakeflow Declarative Pipeline**, point it at `pipeline/th_air_quality_forecast_pipeline.py` in your Git folder, set the catalog and schema, run it.
+3. `notebooks/02_train_and_compare.py` — runs the multi-model bake-off
+4. `notebooks/03_score_and_alert.py` — produces `gold_alerts`
+
+That's the full chain. Each notebook is independent enough to run on its own.
+
+### A5. What you can show after this
+
+Same as path B below — go to step 9 ("See what got built").
+
+---
+
+## Path B — Asset Bundle (CLI)
 
 This section is deliberately verbose. **If a step doesn't work, the troubleshooting table near the bottom probably has the answer.** Don't skip steps.
 
